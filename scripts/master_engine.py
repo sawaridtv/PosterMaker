@@ -37,7 +37,6 @@ WATERMARK_TEXT = "SAWARID سواريد"
 LOCAL_LOGO_PATH = os.path.join(ASSETS_DIR, "logo.png")
 
 # Background Image Setting:
-# Put your background image in assets/background.jpg (or assets/bg_cricket.jpg)
 BG_IMAGE_PATH = os.path.join(ASSETS_DIR, "background.jpg")
 BG_FALLBACK_URL = "https://raw.githubusercontent.com/sawaridtv/PosterMaker/main/assets/background.jpg"
 
@@ -171,19 +170,21 @@ def create_match_poster(match_title, img1_bytes, img2_bytes, save_path, league_l
         vs_h = vs_bbox[3] - vs_bbox[1]
         draw.text((vs_center_x - (vs_w // 2), vs_center_y - (vs_h // 2) - 3), "VS", fill=(255, 255, 255, 255), font=vs_font)
 
-        # --- DRAW WATERMARK & LOCAL LOGO (BOTTOM-LEFT) ---
-        font_size = 46
-        wm_font = get_arabic_english_font(font_size)
-        padding_left = 50
-        padding_bottom = 35
-
+        # --- DRAW WATERMARK & LOCAL LOGO (NO CIRCLE, LARGE FONT) ---
+        logo_target_height = 85
         logo_img = None
         if os.path.exists(LOCAL_LOGO_PATH):
             try:
                 logo_raw = Image.open(LOCAL_LOGO_PATH).convert('RGBA')
-                logo_img = auto_crop_and_resize(logo_raw, 75, 75)
+                # Completely raw crop and resize without any circle cuts or borders
+                logo_img = auto_crop_and_resize(logo_raw, 120, logo_target_height)
             except Exception as e:
                 print(f"[!] Error loading local logo: {e}")
+
+        # Large font size (70) matching the height of the logo
+        wm_font = get_arabic_english_font(70)
+        padding_left = 50
+        padding_bottom = 35
 
         bbox = draw.textbbox((0, 0), WATERMARK_TEXT, font=wm_font)
         text_w = bbox[2] - bbox[0]
@@ -195,17 +196,17 @@ def create_match_poster(match_title, img1_bytes, img2_bytes, save_path, league_l
         element_height = max(logo_h, text_h)
         base_y = height - padding_bottom - element_height
 
-        # Paste logo as-is without circular cuts or extra borders
+        # Paste raw logo as-is (Zero borders, Zero circular outlines)
         if logo_img:
             logo_y = base_y + (element_height - logo_h) // 2
             canvas.paste(logo_img, (padding_left, int(logo_y)), logo_img)
 
-        # Draw Watermark text
-        text_x = padding_left + logo_w + 16 if logo_img else padding_left
+        # Draw large text
+        text_x = padding_left + logo_w + 20 if logo_img else padding_left
         text_y = base_y + (element_height - text_h) // 2
 
-        # Shadow and main text
-        draw.text((text_x + 2, text_y + 2), WATERMARK_TEXT, fill=(0, 0, 0, 240), font=wm_font)
+        # Shadow and main bold text
+        draw.text((text_x + 3, text_y + 3), WATERMARK_TEXT, fill=(0, 0, 0, 250), font=wm_font)
         draw.text((text_x, text_y), WATERMARK_TEXT, fill=(255, 255, 255, 255), font=wm_font)
 
         # Optimize size
@@ -229,7 +230,6 @@ def calculate_sport_times(start_dt, sport_type, match_format="T20"):
     fmt = str(match_format).upper()
 
     if "football" in sport:
-        # Halftime break resumption: 45 min + 15 min break = 60 minutes
         break_target = start_dt + timedelta(minutes=60)
     elif "cricket" in sport:
         if "T10" in fmt:
@@ -366,10 +366,7 @@ def process_footystream():
                     end_utc = datetime.strptime(end_m.group(1), "%Y-%m-%dT%H:%M:%S.%fZ").replace(tzinfo=pytz.utc)
 
                     if (start_utc - timedelta(minutes=45)) <= now_utc <= end_utc:
-                        # Extract all images in event container
                         all_imgs = re.findall(r'<img[^>]*src=["\']([^"\']+)["\']', content, re.IGNORECASE)
-
-                        # Extract team names and team images
                         team_divs = re.findall(r'<div[^>]*class=["\'][^"\']*flex gap-2 items-center[^"\']*["\'][^>]*>([\s\S]*?)</div>', content)
                         teams = []
                         team_images = []
@@ -382,7 +379,7 @@ def process_footystream():
                             if im:
                                 team_images.append(im.group(1))
 
-                        # Detect league logo directly: Any image in event card that is NOT a team logo
+                        # Detect league logo: Any image not matching the two team images
                         league_logo_url = None
                         for img_url in all_imgs:
                             if img_url not in team_images:
@@ -403,7 +400,6 @@ def process_footystream():
                                 r1 = session.get(u1, timeout=10)
                                 r2 = session.get(u2, timeout=10)
 
-                                # Fetch league logo directly from Footystream
                                 league_bytes = None
                                 if league_logo_url:
                                     if not league_logo_url.startswith('http'):
