@@ -73,7 +73,7 @@ def get_font(size):
 def get_bg(width, height):
     possible_paths = [
         os.path.join(BASE_DIR, "assets", "bg_cricket.jpg"),
-        os.path.join(BASE_DIR, "scripts", "IMG_20260810_004413.jpg")
+        os.path.join(BASE_DIR, "scripts", "free.png")
     ]
     for p in possible_paths:
         if os.path.exists(p):
