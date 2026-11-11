@@ -20,11 +20,11 @@ os.makedirs(ASSETS_DIR, exist_ok=True)
 os.makedirs(CRICKET_POSTER_DIR, exist_ok=True)
 os.makedirs(FOOTY_POSTER_DIR, exist_ok=True)
 
-# GitHub Repository Settings
+# Repository configuration
 CURRENT_REPO = os.getenv("GITHUB_REPOSITORY", "sawaridtv/PosterMaker")
 BRANCH_NAME = "main"
 
-# Remote JSON Target Settings (for updating the JSON repo via GitHub API)
+# Remote JSON target repository settings
 TARGET_REPO = os.getenv("TARGET_REPO", "samnite2290/your-data-repo")
 TARGET_JSON_PATH = "matches.json"
 TARGET_GH_PAT = os.getenv("TARGET_REPO_PAT")
@@ -41,33 +41,15 @@ LOCAL_LOGO_PATH = os.path.join(ASSETS_DIR, "logo.png")
 BG_IMAGE_PATH = os.path.join(ASSETS_DIR, "background.jpg")
 BG_FALLBACK_URL = "https://raw.githubusercontent.com/sawaridtv/PosterMaker/main/assets/background.jpg"
 
-# Google Font URL for English + Arabic support (Prevents '' broken characters)
+# Google Font for English + Arabic character rendering
 ARABIC_FONT_PATH = os.path.join(ASSETS_DIR, "cairo_arabic.ttf")
 FONT_DOWNLOAD_URL = "https://raw.githubusercontent.com/google/fonts/main/ofl/cairo/Cairo-Bold.ttf"
 
-# Request Session
+# Requests session
 session = requests.Session()
 session.headers.update({
     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
 })
-
-# ==============================================================================
-# 🏆 LEAGUE & TOURNAMENT BADGES (TOP-CENTER BADGE)
-# ==============================================================================
-LEAGUE_BADGES = {
-    "champions league": "https://upload.wikimedia.org/wikipedia/en/thumb/b/bf/UEFA_Champions_League_logo_2.svg/300px-UEFA_Champions_League_logo_2.svg.png",
-    "premier league": "https://upload.wikimedia.org/wikipedia/en/thumb/f/f2/Premier_League_Logo.svg/300px-Premier_League_Logo.svg.png",
-    "la liga": "https://upload.wikimedia.org/wikipedia/commons/thumb/0/0f/LaLiga_logo_2023.svg/300px-LaLiga_logo_2023.svg.png",
-    "serie a": "https://upload.wikimedia.org/wikipedia/commons/thumb/e/e9/Serie_A_logo_2019.svg/300px-Serie_A_logo_2019.svg.png",
-    "bundesliga": "https://upload.wikimedia.org/wikipedia/en/thumb/d/df/Bundesliga_logo_%282017%29.svg/300px-Bundesliga_logo_%282017%29.svg.png",
-    "ligue 1": "https://upload.wikimedia.org/wikipedia/commons/thumb/5/5e/Ligue1_McDonald%27s_logo.svg/300px-Ligue1_McDonald%27s_logo.svg.png",
-    "europa league": "https://upload.wikimedia.org/wikipedia/en/thumb/0/03/UEFA_Europa_League_logo_%282021%29.svg/300px-UEFA_Europa_League_logo_%282021%29.svg.png",
-    "isl": "https://upload.wikimedia.org/wikipedia/en/thumb/b/b0/Indian_Super_League_logo.svg/300px-Indian_Super_League_logo.svg.png",
-    "ipl": "https://upload.wikimedia.org/wikipedia/en/thumb/8/84/Indian_Premier_League_Official_Logo.svg/300px-Indian_Premier_League_Official_Logo.svg.png",
-    "bpl": "https://upload.wikimedia.org/wikipedia/en/thumb/b/be/Bangladesh_Premier_League_Logo.png/300px-Bangladesh_Premier_League_Logo.png",
-    "psl": "https://upload.wikimedia.org/wikipedia/en/thumb/2/25/Pakistan_Super_League_Logo.svg/300px-Pakistan_Super_League_Logo.svg.png",
-    "world cup": "https://upload.wikimedia.org/wikipedia/commons/thumb/d/d3/ICC_Men%27s_T20_World_Cup_2024_Logo.svg/300px-ICC_Men%27s_T20_World_Cup_2024_Logo.svg.png"
-}
 
 # ==============================================================================
 # 🛠️ HELPER FUNCTIONS
@@ -92,7 +74,7 @@ def get_arabic_english_font(size):
     """Loads a font supporting both Arabic and English to avoid square boxes"""
     if not os.path.exists(ARABIC_FONT_PATH):
         try:
-            print("[*] Downloading Arabic-compatible font (Cairo)...")
+            print("[*] Downloading Arabic font (Cairo)...")
             res = session.get(FONT_DOWNLOAD_URL, timeout=15)
             if res.status_code == 200:
                 with open(ARABIC_FONT_PATH, "wb") as f:
@@ -100,7 +82,6 @@ def get_arabic_english_font(size):
         except Exception as e:
             print(f"[!] Font download failed: {e}")
 
-    # Check font locations
     candidates = [
         ARABIC_FONT_PATH,
         os.path.join(ASSETS_DIR, "oswald.regular.ttf"),
@@ -116,7 +97,7 @@ def get_arabic_english_font(size):
     return ImageFont.load_default()
 
 def load_background(width, height):
-    """Loads local background image or falls back to URL / gradient"""
+    """Loads local background image or falls back to remote URL or gradient"""
     candidates = [
         BG_IMAGE_PATH,
         os.path.join(ASSETS_DIR, "bg_cricket.jpg"),
@@ -138,30 +119,13 @@ def load_background(width, height):
     except Exception:
         pass
 
-    # High quality dark gradient fallback
-    fallback = Image.new('RGBA', (width, height), (15, 23, 42, 255))
-    return fallback
-
-def get_league_badge(match_context):
-    """Detects league name from context and downloads its badge"""
-    context_lower = match_context.lower()
-    for keyword, url in LEAGUE_BADGES.items():
-        if keyword in context_lower:
-            try:
-                res = session.get(url, timeout=5)
-                if res.status_code == 200:
-                    badge = Image.open(BytesIO(res.content)).convert('RGBA')
-                    return auto_crop_and_resize(badge, 140, 90)
-            except Exception:
-                break
-    return None
+    return Image.new('RGBA', (width, height), (15, 23, 42, 255))
 
 # ==============================================================================
 # 🎨 POSTER GENERATOR ENGINE
 # ==============================================================================
-def create_match_poster(match_title, img1_bytes, img2_bytes, save_path, match_context=""):
+def create_match_poster(match_title, img1_bytes, img2_bytes, save_path, league_logo_bytes=None):
     try:
-        # Standard broadcast dimensions: 1080 x 720
         width, height = 1080, 720
         canvas = load_background(width, height)
 
@@ -172,7 +136,7 @@ def create_match_poster(match_title, img1_bytes, img2_bytes, save_path, match_co
         img1 = auto_crop_and_resize(img1, 380, 400)
         img2 = auto_crop_and_resize(img2, 380, 400)
 
-        # Team 1 positioned on Left, Team 2 positioned on Right
+        # Team positioning
         pos_y = 330
         x1 = 270 - (img1.width // 2)
         y1 = pos_y - (img1.height // 2)
@@ -182,24 +146,26 @@ def create_match_poster(match_title, img1_bytes, img2_bytes, save_path, match_co
         canvas.paste(img1, (x1, y1), img1)
         canvas.paste(img2, (x2, y2), img2)
 
-        # --- DRAW TOP-CENTER TOURNAMENT / LEAGUE BADGE ---
-        league_badge = get_league_badge(match_context)
-        if league_badge:
-            bx = (width // 2) - (league_badge.width // 2)
-            by = 40
-            canvas.paste(league_badge, (bx, by), league_badge)
+        # --- PASTE LEAGUE/TOURNAMENT LOGO (SCRAPED DIRECTLY FROM SOURCE) ---
+        if league_logo_bytes:
+            try:
+                l_img = Image.open(BytesIO(league_logo_bytes)).convert('RGBA')
+                l_img = auto_crop_and_resize(l_img, 150, 95)
+                bx = (width // 2) - (l_img.width // 2)
+                by = 40
+                canvas.paste(l_img, (bx, by), l_img)
+            except Exception as e:
+                print(f"[!] Could not render league logo: {e}")
 
-        # --- DRAW STYLISH "VS" BADGE IN CENTER ---
+        # --- DRAW CENTER "VS" BADGE ---
         draw = ImageDraw.Draw(canvas)
         vs_center_x, vs_center_y = 540, 330
         vs_font = get_arabic_english_font(40)
-        
-        # Outer circle for VS
         r = 45
+
         draw.ellipse((vs_center_x - r, vs_center_y - r, vs_center_x + r, vs_center_y + r), 
                      fill=(10, 10, 10, 200), outline=(255, 215, 0, 255), width=3)
         
-        # Center VS Text
         vs_bbox = draw.textbbox((0, 0), "VS", font=vs_font)
         vs_w = vs_bbox[2] - vs_bbox[0]
         vs_h = vs_bbox[3] - vs_bbox[1]
@@ -215,12 +181,10 @@ def create_match_poster(match_title, img1_bytes, img2_bytes, save_path, match_co
         if os.path.exists(LOCAL_LOGO_PATH):
             try:
                 logo_raw = Image.open(LOCAL_LOGO_PATH).convert('RGBA')
-                # Resize logo to match watermark text height cleanly
                 logo_img = auto_crop_and_resize(logo_raw, 75, 75)
             except Exception as e:
                 print(f"[!] Error loading local logo: {e}")
 
-        # Calculate bounding box for text
         bbox = draw.textbbox((0, 0), WATERMARK_TEXT, font=wm_font)
         text_w = bbox[2] - bbox[0]
         text_h = bbox[3] - bbox[1]
@@ -231,20 +195,20 @@ def create_match_poster(match_title, img1_bytes, img2_bytes, save_path, match_co
         element_height = max(logo_h, text_h)
         base_y = height - padding_bottom - element_height
 
-        # Paste logo without any circular borders
+        # Paste logo as-is without circular cuts or extra borders
         if logo_img:
             logo_y = base_y + (element_height - logo_h) // 2
             canvas.paste(logo_img, (padding_left, int(logo_y)), logo_img)
 
-        # Draw Watermark Text beside logo
+        # Draw Watermark text
         text_x = padding_left + logo_w + 16 if logo_img else padding_left
         text_y = base_y + (element_height - text_h) // 2
 
-        # Text drop-shadow for high visibility on any background
+        # Shadow and main text
         draw.text((text_x + 2, text_y + 2), WATERMARK_TEXT, fill=(0, 0, 0, 240), font=wm_font)
         draw.text((text_x, text_y), WATERMARK_TEXT, fill=(255, 255, 255, 255), font=wm_font)
 
-        # Optimize file size (< 120 KB)
+        # Optimize size
         quantized = canvas.convert('P', palette=Image.Palette.ADAPTIVE, colors=256)
         quantized.save(save_path, "PNG", optimize=True)
         return True
@@ -257,7 +221,6 @@ def create_match_poster(match_title, img1_bytes, img2_bytes, save_path, match_co
 # 🕒 MATCH TIMING & NOTIFICATION LOGIC
 # ==============================================================================
 def calculate_sport_times(start_dt, sport_type, match_format="T20"):
-    # Notification: 5 minutes prior to match start
     notif_start = start_dt - timedelta(minutes=5)
     date_and_time_str = format_custom_date(notif_start)
 
@@ -266,7 +229,7 @@ def calculate_sport_times(start_dt, sport_type, match_format="T20"):
     fmt = str(match_format).upper()
 
     if "football" in sport:
-        # Football: 45m play + 15m halftime = 60m resumption
+        # Halftime break resumption: 45 min + 15 min break = 60 minutes
         break_target = start_dt + timedelta(minutes=60)
     elif "cricket" in sport:
         if "T10" in fmt:
@@ -311,7 +274,6 @@ def process_cricbuzz():
             start_dt_utc = datetime.fromtimestamp(start_ms / 1000, tz=pytz.utc)
             end_dt_utc = datetime.fromtimestamp(end_ms / 1000, tz=pytz.utc)
 
-            # Match filter: upcoming in 4 hours or ongoing
             if (start_dt_utc - timedelta(hours=4)) <= now_utc <= (end_dt_utc + timedelta(hours=1)):
                 t1 = info.get("team1", {})
                 t2 = info.get("team2", {})
@@ -340,9 +302,23 @@ def process_cricbuzz():
 
                     r1 = session.get(u1, timeout=10)
                     r2 = session.get(u2, timeout=10)
+
+                    # Extract Series / Tournament Logo directly from Cricbuzz
+                    series_logo_bytes = None
+                    series_id = info.get("seriesId") or info.get("series", {}).get("id")
+                    if series_id:
+                        s_slug = re.sub(r'\s+', '-', series_name).lower()
+                        s_url = f"https://static.cricbuzz.com/a/img/v1/0x0/i1/c{series_id}/{s_slug}.jpg"
+                        try:
+                            s_res = session.get(s_url, timeout=5)
+                            if s_res.status_code == 200:
+                                series_logo_bytes = s_res.content
+                        except Exception:
+                            pass
+
                     if r1.status_code == 200 and r2.status_code == 200:
                         print(f"    🎨 Designing poster: {match_title}")
-                        create_match_poster(match_title, r1.content, r2.content, poster_path, match_context=series_name)
+                        create_match_poster(match_title, r1.content, r2.content, poster_path, league_logo_bytes=series_logo_bytes)
 
                 start_dt_local = start_dt_utc.astimezone(TIMEZONE)
                 dt_str, mult_run, mult_time = calculate_sport_times(start_dt_local, "cricket", match_format)
@@ -362,9 +338,9 @@ def process_cricbuzz():
 
     return json_entries
 
-# ==========================================
+# ==============================================================================
 # ⚽ PROCESS FOOTYSTREAM MATCHES
-# ==========================================
+# ==============================================================================
 def process_footystream():
     json_entries = []
     print("\n[+] Fetching matches from Footystream...")
@@ -390,9 +366,13 @@ def process_footystream():
                     end_utc = datetime.strptime(end_m.group(1), "%Y-%m-%dT%H:%M:%S.%fZ").replace(tzinfo=pytz.utc)
 
                     if (start_utc - timedelta(minutes=45)) <= now_utc <= end_utc:
+                        # Extract all images in event container
+                        all_imgs = re.findall(r'<img[^>]*src=["\']([^"\']+)["\']', content, re.IGNORECASE)
+
+                        # Extract team names and team images
                         team_divs = re.findall(r'<div[^>]*class=["\'][^"\']*flex gap-2 items-center[^"\']*["\'][^>]*>([\s\S]*?)</div>', content)
                         teams = []
-                        images = []
+                        team_images = []
 
                         for tm in team_divs:
                             t_name = re.sub(r'<[^>]+>', '', tm).strip()
@@ -400,9 +380,16 @@ def process_footystream():
                                 teams.append(t_name)
                             im = re.search(r'<img[^>]*src=["\']([^"\']+)["\']', tm)
                             if im:
-                                images.append(im.group(1))
+                                team_images.append(im.group(1))
 
-                        if len(teams) >= 2 and len(images) >= 2:
+                        # Detect league logo directly: Any image in event card that is NOT a team logo
+                        league_logo_url = None
+                        for img_url in all_imgs:
+                            if img_url not in team_images:
+                                league_logo_url = img_url
+                                break
+
+                        if len(teams) >= 2 and len(team_images) >= 2:
                             match_title = f"{teams[0]} vs {teams[1]}"
                             safe_title = sanitize_filename(match_title)
                             filename = f"{safe_title}.png"
@@ -410,13 +397,27 @@ def process_footystream():
                             raw_poster_url = f"https://raw.githubusercontent.com/{CURRENT_REPO}/{BRANCH_NAME}/footy_posters/{filename}"
 
                             if not os.path.exists(poster_path):
-                                u1 = images[0] if images[0].startswith('http') else "https://footystream.pk" + images[0]
-                                u2 = images[1] if images[1].startswith('http') else "https://footystream.pk" + images[1]
+                                u1 = team_images[0] if team_images[0].startswith('http') else "https://footystream.pk" + team_images[0]
+                                u2 = team_images[1] if team_images[1].startswith('http') else "https://footystream.pk" + team_images[1]
+                                
                                 r1 = session.get(u1, timeout=10)
                                 r2 = session.get(u2, timeout=10)
+
+                                # Fetch league logo directly from Footystream
+                                league_bytes = None
+                                if league_logo_url:
+                                    if not league_logo_url.startswith('http'):
+                                        league_logo_url = "https://footystream.pk" + league_logo_url
+                                    try:
+                                        l_res = session.get(league_logo_url, timeout=8)
+                                        if l_res.status_code == 200:
+                                            league_bytes = l_res.content
+                                    except Exception:
+                                        pass
+
                                 if r1.status_code == 200 and r2.status_code == 200:
                                     print(f"    🎨 Designing poster: {match_title}")
-                                    create_match_poster(match_title, r1.content, r2.content, poster_path, match_context=slug)
+                                    create_match_poster(match_title, r1.content, r2.content, poster_path, league_logo_bytes=league_bytes)
 
                             start_local = start_utc.astimezone(TIMEZONE)
                             dt_str, mult_run, mult_time = calculate_sport_times(start_local, "football")
