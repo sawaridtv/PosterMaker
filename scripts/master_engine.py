@@ -28,8 +28,8 @@ TARGET_JSON_PATH = "matches.json"  # টার্গেট রিপোজিট
 TARGET_GH_PAT = os.getenv("TARGET_REPO_PAT")  # Personal Access Token
 
 # ওয়াটারমার্ক সেটিংস
-WATERMARK_TEXT = "@SRHady12"
-TELEGRAM_LOGO_URL = "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSaSPdPPY4GyA1xREeBCQ7DKXRd-zzddux-SB7CgBQkOg&s=10"
+WATERMARK_TEXT = "SAWARID سواريد"
+TELEGRAM_LOGO_URL = "https://i.postimg.cc/QNgtFGjJ/SAWARID-LOGO-SMALL.png"
 
 # টাইমজোন (বাংলাদেশ টাইম UTC+6)
 TIMEZONE = pytz.timezone("Asia/Dhaka")
